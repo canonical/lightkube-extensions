@@ -1,6 +1,5 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
-from unittest import mock
 
 import pytest
 from lightkube.models.meta_v1 import ObjectMeta
@@ -21,9 +20,7 @@ global_resource = Namespace(
     "objects,expected_namespaces",
     (([namespaced_resource, global_resource], ["namespace", None]),),
 )
-def test_apply_many(
-    objects, expected_namespaces, mocker  # noqa F811
-):  # noqa F811
+def test_apply_many(objects, expected_namespaces, mocker):  # noqa F811  # noqa F811
     # Replace sort_objects with something that returns the objects passed, for testing
     mocked_sort_objects = mocker.patch("lightkube_extensions.batch._many.sort_objects")
     mocked_sort_objects.side_effect = lambda objs: objs
@@ -64,9 +61,7 @@ def test_apply_many(
         (1, pytest.raises(TypeError)),  # Something that is not iterable
     ),
 )
-def test_apply_many_error(
-    objects, context_raised, mocker  # noqa F811
-):  # noqa F811
+def test_apply_many_error(objects, context_raised, mocker):  # noqa F811  # noqa F811
     # Replace sort_objects with something that returns the objects passed, for testing
     mocked_sort_objects = mocker.patch("lightkube_extensions.batch._many.sort_objects")
     mocked_sort_objects.side_effect = lambda objs: objs

@@ -14,7 +14,6 @@ from ..types import (
     LightkubeResourceType,
     LightkubeResourceTypesSet,
 )
-
 from ._many import apply_many, delete_many
 
 
