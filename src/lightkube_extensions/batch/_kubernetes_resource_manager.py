@@ -15,8 +15,7 @@ from ..types import (
     LightkubeResourceTypesSet,
 )
 
-# TODO: Vendor anything from chisme
-from . import apply_many, delete_many
+from ._many import apply_many, delete_many
 
 
 class KubernetesResourceManager:

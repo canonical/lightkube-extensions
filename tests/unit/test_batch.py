@@ -22,7 +22,7 @@ global_resource = Namespace(
     (([namespaced_resource, global_resource], ["namespace", None]),),
 )
 def test_apply_many(
-    objects, expected_namespaces, mocker, mocked_lightkube_client  # noqa F811
+    objects, expected_namespaces, mocker  # noqa F811
 ):  # noqa F811
     # Replace sort_objects with something that returns the objects passed, for testing
     mocked_sort_objects = mocker.patch("lightkube_extensions.batch._many.sort_objects")
@@ -31,6 +31,8 @@ def test_apply_many(
     # Other inputs passed to client.apply
     field_manager = "fm"
     force = True
+
+    mocked_lightkube_client = mocker.MagicMock()
 
     # Execute the test
     returned = apply_many(
@@ -49,7 +51,7 @@ def test_apply_many(
     # Assert we called apply with the expected inputs
     calls = [None] * len(objects)
     for i, (obj, namespace) in enumerate(zip(objects, expected_namespaces)):
-        calls[i] = mock.call(
+        calls[i] = mocker.call(
             obj=obj, namespace=namespace, field_manager=field_manager, force=force
         )
     mocked_lightkube_client.apply.assert_has_calls(calls)
@@ -63,7 +65,7 @@ def test_apply_many(
     ),
 )
 def test_apply_many_error(
-    objects, context_raised, mocker, mocked_lightkube_client  # noqa F811
+    objects, context_raised, mocker  # noqa F811
 ):  # noqa F811
     # Replace sort_objects with something that returns the objects passed, for testing
     mocked_sort_objects = mocker.patch("lightkube_extensions.batch._many.sort_objects")
@@ -76,7 +78,7 @@ def test_apply_many_error(
     # Execute the test
     with context_raised:
         apply_many(
-            client=mocked_lightkube_client,
+            client=mocker.MagicMock(),
             objs=objects,
             field_manager=field_manager,
             force=force,
@@ -101,11 +103,12 @@ def test_delete_many(
     expected_names,
     expected_namespaces,
     mocker,
-    mocked_lightkube_client,  # noqa F811
 ):
     # Replace sort_objects with something that returns the objects passed, for testing
     mocked_sort_objects = mocker.patch("lightkube_extensions.batch._many.sort_objects")
     mocked_sort_objects.side_effect = lambda objs, reverse: objs
+
+    mocked_lightkube_client = mocker.MagicMock()
 
     # Execute the test
     returned = delete_many(
@@ -122,7 +125,7 @@ def test_delete_many(
     # Assert we called apply with the expected inputs
     calls = [None] * len(objects)
     for i, (obj, name, namespace) in enumerate(zip(objects, expected_names, expected_namespaces)):
-        calls[i] = mock.call(res=obj.__class__, name=name, namespace=namespace)
+        calls[i] = mocker.call(res=obj.__class__, name=name, namespace=namespace)
     mocked_lightkube_client.delete.assert_has_calls(calls)
 
 
@@ -137,11 +140,12 @@ def test_delete_many_error(
     objects,
     context_raised,
     mocker,
-    mocked_lightkube_client,  # noqa F811
 ):
     # Replace sort_objects with something that returns the objects passed, for testing
     mocked_sort_objects = mocker.patch("lightkube_extensions.batch._many.sort_objects")
     mocked_sort_objects.side_effect = lambda objs, reverse: objs
+
+    mocked_lightkube_client = mocker.MagicMock()
 
     # Execute the test
     with context_raised:
