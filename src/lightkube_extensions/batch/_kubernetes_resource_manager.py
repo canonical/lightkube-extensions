@@ -6,7 +6,7 @@ import copy
 import logging
 from typing import Callable, Optional, Tuple
 
-from lightkube import Client
+from lightkube import ApiError, Client
 from lightkube.core.resource import NamespacedResource, Resource, api_info
 
 from ..types import (
@@ -143,9 +143,22 @@ class KubernetesResourceManager:
             else:
                 # Global resources have no namespace
                 namespace = None
-            resources.extend(
-                self.lightkube_client.list(resource_type, namespace=namespace, labels=self.labels)
-            )
+            try:
+                resources.extend(
+                    self.lightkube_client.list(
+                        resource_type, namespace=namespace, labels=self.labels
+                    )
+                )
+            except ApiError as error:
+                if error.status.code == 404:
+                    # During teardown, especially when destroying a model, we can have a race condition
+                    # where resource_type's owner may have already been deleted and thus the resource_type
+                    # CRD has been removed.  For that reason, ignore 404 errors here and just proceed to
+                    # the next resource
+                    self.log.debug(
+                        f"resource type {resource_type} not found in cluster.  Ignoring this type."
+                    )
+                raise error
 
         return resources
 

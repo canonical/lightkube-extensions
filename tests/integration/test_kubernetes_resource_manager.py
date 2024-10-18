@@ -12,6 +12,7 @@ from lightkube.codecs import load_all_yaml
 from lightkube.core.exceptions import ApiError
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Namespace, Pod, Service
+
 from lightkube_extensions.batch import KubernetesResourceManager, create_charm_default_labels
 
 # Note: all tests require a Kubernetes cluster to run against.

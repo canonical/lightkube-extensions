@@ -15,6 +15,7 @@ from lightkube.models.meta_v1 import LabelSelector, ObjectMeta
 from lightkube.resources.admissionregistration_v1 import MutatingWebhookConfiguration
 from lightkube.resources.apps_v1 import StatefulSet
 from lightkube.resources.core_v1 import Pod, Service
+
 from lightkube_extensions.batch import KubernetesResourceManager
 from lightkube_extensions.batch._kubernetes_resource_manager import (
     _add_labels_to_resources,
