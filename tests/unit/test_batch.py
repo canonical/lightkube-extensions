@@ -5,6 +5,7 @@ import pytest
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.apps_v1 import StatefulSet
 from lightkube.resources.core_v1 import Namespace
+
 from lightkube_extensions.batch import apply_many, delete_many
 
 namespaced_resource = StatefulSet(
