@@ -162,7 +162,7 @@ class KubernetesResourceManager:
 
         return resources
 
-    def reconcile(self, resources: LightkubeResourcesList, force=False, ignore_missing=True):
+    def reconcile(self, resources: LightkubeResourcesList, force=True, ignore_missing=True):
         """Reconcile the given resources, removing, updating, or creating objects as required.
 
         This method will:
