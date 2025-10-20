@@ -166,8 +166,10 @@ def test_KubernetesResourceManager_get_deployed_resources():  # noqa: N802
     # Assert list called once for each resource type
     mock_lightkube_client.list.call_count == len(resource_types)
 
-    # Assert we got the results from list
-    assert resources == expected_resources
+    # Assert we got the results from list (sort both lists since set iteration order is non-deterministic)
+    assert sorted(resources, key=_hash_lightkube_resource) == sorted(
+        expected_resources, key=_hash_lightkube_resource
+    )
 
 
 def test_KubernetesResourceManager_reconcile():  # noqa: N802

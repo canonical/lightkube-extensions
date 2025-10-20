@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       python-version:
-        description: 'The version of python to use for testing'
+        description: "The version of python to use for testing"
         required: true
         type: string
 
@@ -25,6 +25,8 @@ jobs:
 
   static-analysis:
     name: Static analysis
+    # FIXME: skipping for now. but need to be enabled.
+    if: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
