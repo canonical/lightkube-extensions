@@ -1,0 +1,52 @@
+name: Test the package
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'The version of python to use for testing'
+        required: true
+        type: string
+
+jobs:
+  linting:
+    name: Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and pin python
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "${{ inputs.python-version }}"
+
+      - name: Test
+        run: uvx tox -e lint
+
+  static-analysis:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and pin python
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "${{ inputs.python-version }}"
+
+      - name: Test
+        run: uvx tox -e static
+
+  unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and pin python
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "${{ inputs.python-version }}"
+
+      - name: Test
+        run: uvx tox -e unit

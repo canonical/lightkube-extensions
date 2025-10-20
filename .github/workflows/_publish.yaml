@@ -1,0 +1,33 @@
+name: Publish the package
+
+on:
+  workflow_call:
+    inputs:
+      release-version:
+        description: 'The version to publish'
+        required: true
+        type: string
+
+jobs:
+  build-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and pin python
+        uses: astral-sh/setup-uv@v6
+
+      - name: Update package version
+        run: sed -i 's/^version = "999\.999\.999".*/version = "${{ inputs.release-version }}"/' pyproject.toml
+
+      - name: Echo pyproject.toml
+        run: cat pyproject.toml
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish to PyPI
+        # Credentials are not required because this workflow is registered as a trusted publisher in pypi
+        run: uv publish
