@@ -193,9 +193,9 @@ def test_KubernetesResourceManager_reconcile():  # noqa: N802
     # Act
     krm.reconcile(desired_resources)
 
-    # Assert that we tried to delete one object and then called apply
+    # Assert that we tried to delete one object and then called patch
     assert krm.lightkube_client.delete.call_count == 1
-    assert krm.lightkube_client.apply.call_count == len(desired_resources)
+    assert krm.lightkube_client.patch.call_count == len(desired_resources)
 
 
 @pytest.mark.parametrize(

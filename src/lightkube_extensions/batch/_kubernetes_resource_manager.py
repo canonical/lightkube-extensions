@@ -107,7 +107,12 @@ class KubernetesResourceManager:
             logger=self.log,
         )
 
-    def patch(self, resources: LightkubeResourcesList, force: bool = True, patch_type: PatchType = PatchType.APPLY):
+    def patch(
+        self,
+        resources: LightkubeResourcesList,
+        force: bool = True,
+        patch_type: PatchType = PatchType.APPLY,
+    ):
         """Patch the provided Kubernetes resources, adding or modifying these objects.
 
         Similar to apply() but uses client.patch() with configurable patch_type, allowing
@@ -206,7 +211,13 @@ class KubernetesResourceManager:
 
         return resources
 
-    def reconcile(self, resources: LightkubeResourcesList, force=True, ignore_missing=True, patch_type: PatchType = PatchType.APPLY):
+    def reconcile(
+        self,
+        resources: LightkubeResourcesList,
+        force=True,
+        ignore_missing=True,
+        patch_type: PatchType = PatchType.APPLY,
+    ):
         """Reconcile the given resources, removing, updating, or creating objects as required.
 
         This method will:
