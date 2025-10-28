@@ -8,13 +8,14 @@ from typing import Callable, Optional, Tuple
 
 from lightkube import ApiError, Client
 from lightkube.core.resource import NamespacedResource, Resource, api_info
+from lightkube.types import PatchType
 
 from ..types import (
     LightkubeResourcesList,
     LightkubeResourceType,
     LightkubeResourceTypesSet,
 )
-from ._many import apply_many, delete_many
+from ._many import apply_many, delete_many, patch_many
 
 
 class KubernetesResourceManager:
@@ -26,6 +27,7 @@ class KubernetesResourceManager:
         resource_types: LightkubeResourceTypesSet,
         lightkube_client: Client,
         logger: Optional[logging.Logger] = None,
+        patch_type: PatchType = PatchType.APPLY,
     ):
         """Return a KubernetesResourceHandler instance.
 
@@ -54,10 +56,14 @@ class KubernetesResourceManager:
                                                  for this is to use the application name (eg:
                                                  `self.model.app.name` or
                                                  `self.model.app.name +'_' self.model.name`).
+            patch_type (PatchType): (Optional) Type of patch to use when applying/reconciling resources.
+                                    Defaults to PatchType.APPLY (Server-Side Apply).
+                                    Use PatchType.MERGE to replace arrays completely instead of merging.
         """
         self.labels = labels
         self.resource_types = resource_types
         self.lightkube_client = lightkube_client
+        self.patch_type = patch_type
         if logger is None:
             self.log = logging.getLogger(__name__)  # TODO: Give default logger a better name
         else:
@@ -99,9 +105,10 @@ class KubernetesResourceManager:
                     " to create a resource of type not included in `KRM.resource_types`."
                 ) from e
 
-        apply_many(
+        patch_many(
             client=self.lightkube_client,
             objs=resources,
+            patch_type=self.patch_type,
             force=force,
             logger=self.log,
         )
