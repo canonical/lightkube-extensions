@@ -131,15 +131,28 @@ def patch_many(
                 f" got {type(obj)}"
             )
         logger.debug(f"Patching {obj.__class__} {obj.metadata.name}...")
-        returns[i] = client.patch(
-            res=obj.__class__,
-            name=obj.metadata.name,
-            obj=obj,
-            namespace=namespace,
-            patch_type=patch_type,
-            field_manager=field_manager,
-            force=force,
-        )
+        try:
+            returns[i] = client.patch(
+                res=obj.__class__,
+                name=obj.metadata.name,
+                obj=obj,
+                namespace=namespace,
+                patch_type=patch_type,
+                field_manager=field_manager,
+                force=force,
+            )
+        except ApiError as error:
+            # If MERGE/JSON patch fails with 404, the resource doesn't exist yet
+            # Fall back to apply() to create it (apply is idempotent and handles creation)
+            if error.status.code == 404 and patch_type != PatchType.APPLY:
+                logger.debug(
+                    f"Resource {obj.__class__} {obj.metadata.name} not found, creating with apply()..."
+                )
+                returns[i] = client.apply(
+                    obj=obj, namespace=namespace, field_manager=field_manager, force=force
+                )
+            else:
+                raise
     return returns
 
 
