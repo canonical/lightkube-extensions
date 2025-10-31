@@ -8,13 +8,14 @@ from typing import Callable, Optional, Tuple
 
 from lightkube import ApiError, Client
 from lightkube.core.resource import NamespacedResource, Resource, api_info
+from lightkube.types import PatchType
 
 from ..types import (
     LightkubeResourcesList,
     LightkubeResourceType,
     LightkubeResourceTypesSet,
 )
-from ._many import apply_many, delete_many
+from ._many import apply_many, delete_many, patch_many
 
 
 class KubernetesResourceManager:
@@ -106,6 +107,54 @@ class KubernetesResourceManager:
             logger=self.log,
         )
 
+    def patch(
+        self,
+        resources: LightkubeResourcesList,
+        force: bool = True,
+        patch_type: PatchType = PatchType.APPLY,
+    ):
+        """Patch the provided Kubernetes resources, adding or modifying these objects.
+
+        Similar to apply() but uses client.patch() with configurable patch_type, allowing
+        for different patch strategies like MERGE which replaces arrays completely instead of
+        merging them element-by-element.
+
+        If self.labels is set, the labels will be added to all resources before patching them.
+
+        If self.resource_types is set, the a ValueError will be raised if trying to create a
+        resource not in the set.
+
+        This function will only add or modify existing objects, it will not delete any resources.
+        To simultaneously create, update, and delete resources, see self.reconcile().
+
+        Args:
+            resources: A list of Lightkube Resource objects to patch
+            force: *(optional)* Force is going to "force" patch requests. It means user will
+                   re-acquire conflicting fields owned by other people.
+            patch_type: *(optional)* Type of patch to use. Defaults to PatchType.APPLY (Server-Side Apply).
+                        Use PatchType.MERGE to replace arrays completely instead of merging them.
+        """
+        self.log.info("Patching resources")
+        if self.labels is not None:
+            resources = _add_labels_to_resources(resources, self.labels)
+
+        if self.resource_types:
+            try:
+                _validate_resources(resources, allowed_resource_types=self.resource_types)
+            except ValueError as e:
+                raise ValueError(
+                    "Failed to validate resources before patching them. This likely means we tried"
+                    " to create a resource of type not included in `KRM.resource_types`."
+                ) from e
+
+        patch_many(
+            client=self.lightkube_client,
+            objs=resources,
+            patch_type=patch_type,
+            force=force,
+            logger=self.log,
+        )
+
     def delete(self, ignore_missing=True):
         """Delete all resources managed by this KubernetesResourceHandler.
 
@@ -162,7 +211,13 @@ class KubernetesResourceManager:
 
         return resources
 
-    def reconcile(self, resources: LightkubeResourcesList, force=True, ignore_missing=True):
+    def reconcile(
+        self,
+        resources: LightkubeResourcesList,
+        force=True,
+        ignore_missing=True,
+        patch_type: PatchType = PatchType.APPLY,
+    ):
         """Reconcile the given resources, removing, updating, or creating objects as required.
 
         This method will:
@@ -170,14 +225,16 @@ class KubernetesResourceManager:
           getting all resources currently deployed that match the label selector in self.labels
         * compare the existing resources to the desired resources provided, deleting any resources
           that exist but are not in the desired resource list
-        * call .apply() to create any new resources and update any remaining existing ones to the
+        * call .patch() to create any new resources and update any remaining existing ones to the
           desired state
 
         Args:
             resources: A list of Lightkube Resource objects to apply
-            force: *(optional)* Passed to self.apply().  This will force apply over any resources
+            force: *(optional)* Passed to self.patch().  This will force patch over any resources
                    marked as managed by another field manager.
             ignore_missing: *(optional)* Avoid raising 404 errors on deletion (defaults to True)
+            patch_type: *(optional)* Type of patch to use. Defaults to PatchType.APPLY (Server-Side Apply).
+                        Use PatchType.MERGE to replace arrays completely instead of merging them.
         """
         desired_resources = resources
         existing_resources = self.get_deployed_resources()
@@ -189,7 +246,7 @@ class KubernetesResourceManager:
         delete_many(self.lightkube_client, resources_to_delete, ignore_missing, self.log)
 
         # Update remaining resources and create any new ones
-        self.apply(resources=resources, force=force)
+        self.patch(resources=resources, force=force, patch_type=patch_type)
 
 
 def create_charm_default_labels(application_name: str, model_name: str, scope: str) -> dict:

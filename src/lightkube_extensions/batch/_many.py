@@ -9,6 +9,7 @@ from lightkube import sort_objects
 from lightkube.core import resource
 from lightkube.core.exceptions import ApiError
 from lightkube.core.resource import GlobalResource, NamespacedResource
+from lightkube.types import PatchType
 
 LOGGER = logging.getLogger(__name__)
 
@@ -70,6 +71,88 @@ def apply_many(
         returns[i] = client.apply(
             obj=obj, namespace=namespace, field_manager=field_manager, force=force
         )
+    return returns
+
+
+def patch_many(
+    client: lightkube.Client,
+    objs: Iterable[Union[GlobalResourceTypeVar, NamespacedResourceTypeVar]],
+    patch_type: PatchType = PatchType.APPLY,
+    field_manager: str = None,
+    force: bool = False,
+    logger: logging.Logger = None,
+) -> Iterable[Union[GlobalResourceTypeVar, NamespacedResourceTypeVar]]:
+    """Create or configure an iterable of Lightkube objects using client.patch().
+
+    Similar to apply_many() but uses client.patch() with configurable patch_type, allowing
+    for different patch strategies like MERGE which replaces arrays completely instead of
+    merging them element-by-element.
+
+    To avoid referencing objects before they are created, resources are sorted and applied in the
+    following order:
+    * CRDs
+    * Namespaces
+    * Things that might be referenced by pods (Secret, ServiceAccount, PVs/PVCs, ConfigMap)
+    * RBAC
+        * Roles and ClusterRoles
+        * RoleBindings and ClusterRoleBindings
+    * Everything else (Pod, Deployment, ...)
+
+    Sorting is performed using Lightkube's `lightkube.codecs.sort_objects`
+
+    Args:
+        client: Lightkube client to use for patching resources
+        objs: Iterable of objects to create. This need to be instances of a resource kind and have
+              resource.metadata.namespaced defined if they are namespaced resources
+        patch_type: *(optional)* Type of patch to use. Defaults to PatchType.APPLY (Server-Side Apply).
+                    Use PatchType.MERGE to replace arrays completely instead of merging them.
+        field_manager: Name associated with the actor or entity that is making these changes.
+        force: *(optional)* Force is going to "force" Apply requests. It means user will
+               re-acquire conflicting fields owned by other people.
+        logger: *(optional)* Logger to use for patching resources
+
+    Returns:
+        A list of Resource objects returned from client.patch().  This list is returned in the
+        order the resources were actually applied, not the order in which they're passed as inputs
+        in `objs`.
+    """
+    logger = logger or LOGGER
+    objs = sort_objects(objs)
+    returns = [None] * len(objs)
+
+    for i, obj in enumerate(objs):
+        if isinstance(obj, NamespacedResource):
+            namespace = obj.metadata.namespace
+        elif isinstance(obj, GlobalResource):
+            namespace = None
+        else:
+            raise TypeError(
+                f"patch_many only supports objects of types NamespacedResource or GlobalResource,"
+                f" got {type(obj)}"
+            )
+        logger.debug(f"Patching {obj.__class__} {obj.metadata.name}...")
+        try:
+            returns[i] = client.patch(
+                res=obj.__class__,
+                name=obj.metadata.name,
+                obj=obj,
+                namespace=namespace,
+                patch_type=patch_type,
+                field_manager=field_manager,
+                force=force,
+            )
+        except ApiError as error:
+            # If MERGE/JSON patch fails with 404, the resource doesn't exist yet
+            # Fall back to apply() to create it (apply is idempotent and handles creation)
+            if error.status.code == 404 and patch_type != PatchType.APPLY:
+                logger.debug(
+                    f"Resource {obj.__class__} {obj.metadata.name} not found, creating with apply()..."
+                )
+                returns[i] = client.apply(
+                    obj=obj, namespace=namespace, field_manager=field_manager, force=force
+                )
+            else:
+                raise
     return returns
 
 
