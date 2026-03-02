@@ -6,6 +6,7 @@ from typing import NamedTuple
 from unittest import mock
 from unittest.mock import patch
 
+import httpx
 import pytest
 from lightkube.codecs import load_all_yaml
 from lightkube.generic_resource import create_global_resource, create_namespaced_resource
@@ -15,8 +16,6 @@ from lightkube.models.meta_v1 import LabelSelector, ObjectMeta
 from lightkube.resources.admissionregistration_v1 import MutatingWebhookConfiguration
 from lightkube.resources.apps_v1 import StatefulSet
 from lightkube.resources.core_v1 import Pod, Service
-
-import httpx
 
 from lightkube_extensions.batch import K8sApiError, KubernetesResourceManager
 from lightkube_extensions.batch._kubernetes_resource_manager import (
