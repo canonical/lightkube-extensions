@@ -3,9 +3,11 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 import copy
+import functools
 import logging
 from typing import Callable, Optional, Tuple
 
+import httpx
 from lightkube import ApiError, Client
 from lightkube.core.resource import NamespacedResource, Resource, api_info
 from lightkube.types import PatchType
@@ -16,6 +18,26 @@ from ..types import (
     LightkubeResourceTypesSet,
 )
 from ._many import apply_many, delete_many, patch_many
+
+
+class K8sApiError(Exception):
+    """Raised when a Kubernetes API call fails due to a transport-level error (e.g. API unreachable, timeout)."""
+
+
+def _k8s_api_call(func):
+    """Catch transport-level errors from the Kubernetes API and wrap them in K8sApiError."""
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except httpx.TransportError as e:
+            raise K8sApiError(
+                f"Failed to {func.__name__} Kubernetes resources: "
+                f"the Kubernetes API may be unreachable. Cause: {e}"
+            ) from e
+
+    return wrapper
 
 
 class KubernetesResourceManager:
@@ -64,6 +86,7 @@ class KubernetesResourceManager:
         else:
             self.log = logger
 
+    @_k8s_api_call
     def apply(self, resources: LightkubeResourcesList, force: bool = True):
         """Apply the provided Kubernetes resources, adding or modifying these objects.
 
@@ -107,6 +130,7 @@ class KubernetesResourceManager:
             logger=self.log,
         )
 
+    @_k8s_api_call
     def patch(
         self,
         resources: LightkubeResourcesList,
@@ -155,6 +179,7 @@ class KubernetesResourceManager:
             logger=self.log,
         )
 
+    @_k8s_api_call
     def delete(self, ignore_missing=True):
         """Delete all resources managed by this KubernetesResourceHandler.
 
@@ -166,6 +191,7 @@ class KubernetesResourceManager:
         resources_to_delete = self.get_deployed_resources()
         delete_many(self.lightkube_client, resources_to_delete, ignore_missing, self.log)
 
+    @_k8s_api_call
     def get_deployed_resources(self) -> LightkubeResourcesList:
         """Return a list of all resources deployed by this KubernetesResourceHandler.
 
@@ -211,6 +237,7 @@ class KubernetesResourceManager:
 
         return resources
 
+    @_k8s_api_call
     def reconcile(
         self,
         resources: LightkubeResourcesList,
