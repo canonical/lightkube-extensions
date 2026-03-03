@@ -6,6 +6,7 @@ from typing import NamedTuple
 from unittest import mock
 from unittest.mock import patch
 
+import httpx
 import pytest
 from lightkube.codecs import load_all_yaml
 from lightkube.generic_resource import create_global_resource, create_namespaced_resource
@@ -16,7 +17,7 @@ from lightkube.resources.admissionregistration_v1 import MutatingWebhookConfigur
 from lightkube.resources.apps_v1 import StatefulSet
 from lightkube.resources.core_v1 import Pod, Service
 
-from lightkube_extensions.batch import KubernetesResourceManager
+from lightkube_extensions.batch import K8sApiError, KubernetesResourceManager
 from lightkube_extensions.batch._kubernetes_resource_manager import (
     _add_labels_to_resources,
     _get_resource_classes_in_manifests,
@@ -369,3 +370,33 @@ def test_validate_resources(resources, allowed_resource_types, expected_context_
     """Tests that _validate_resources correctly validates the resources against an allowed list."""
     with expected_context_raised:
         _validate_resources(resources, allowed_resource_types)
+
+
+@pytest.mark.parametrize(
+    "method, kwargs",
+    [
+        ("apply", {"resources": [Pod(metadata=ObjectMeta(name="p", namespace="ns"))]}),
+        ("patch", {"resources": [Pod(metadata=ObjectMeta(name="p", namespace="ns"))]}),
+        ("delete", {}),
+        ("get_deployed_resources", {}),
+        ("reconcile", {"resources": [Pod(metadata=ObjectMeta(name="p", namespace="ns"))]}),
+    ],
+)
+def test_KubernetesResourceManager_wraps_transport_error(method, kwargs):  # noqa: N802
+    """Tests that KRM public methods wrap httpx.TransportError in K8sApiError."""
+    mock_client = mock.MagicMock()
+    mock_client.list.side_effect = httpx.ConnectTimeout("timed out")
+    mock_client.apply.side_effect = httpx.ConnectTimeout("timed out")
+    mock_client.patch.side_effect = httpx.ConnectTimeout("timed out")
+    mock_client.delete.side_effect = httpx.ConnectTimeout("timed out")
+
+    krm = KubernetesResourceManager(
+        labels=DEFAULT_LABELS,
+        resource_types={Pod},
+        lightkube_client=mock_client,
+    )
+
+    with pytest.raises(K8sApiError, match="Kubernetes API may be unreachable") as exc_info:
+        getattr(krm, method)(**kwargs)
+
+    assert isinstance(exc_info.value.__cause__, httpx.TransportError)
