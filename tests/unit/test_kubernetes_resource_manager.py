@@ -25,6 +25,7 @@ from lightkube_extensions.batch._kubernetes_resource_manager import (
     _in_left_not_right,
     _validate_resources,
 )
+from src.lightkube_extensions.batch._kubernetes_resource_manager import create_charm_default_labels
 
 data_dir = Path(__file__).parent.joinpath("data")
 
@@ -400,3 +401,15 @@ def test_KubernetesResourceManager_wraps_transport_error(method, kwargs):  # noq
         getattr(krm, method)(**kwargs)
 
     assert isinstance(exc_info.value.__cause__, httpx.TransportError)
+
+
+@pytest.mark.parametrize("model_name", ["a", "b" * 63, "c" * 64], ids=["m1", "m63", "m64"])
+@pytest.mark.parametrize("app_name", ["a", "b" * 63, "c" * 64], ids=["a1", "a63", "a64"])
+def test_create_charm_default_labels__maxlength(model_name, app_name):
+    labels = create_charm_default_labels(app_name, model_name, "testscope")
+    assert len(labels["app.kubernetes.io/instance"]) <= 63
+
+
+def test_create_charm_default_labels__short_names():
+    labels = create_charm_default_labels("abcde", "fghij", "testscope")
+    assert labels["app.kubernetes.io/instance"] == "fghij-abcde"

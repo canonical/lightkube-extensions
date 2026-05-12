@@ -19,6 +19,7 @@ classifiers = [
 dependencies = [
   "lightkube>=0.11.0",
   "jinja2",
+  "charmed-service-mesh-helpers"
 ]
 
 # Testing tools configuration
