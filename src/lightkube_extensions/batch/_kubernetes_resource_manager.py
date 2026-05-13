@@ -5,9 +5,10 @@
 import copy
 import functools
 import logging
-from typing import Callable, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 import httpx
+from charmed_service_mesh_helpers import charm_kubernetes_label
 from lightkube import ApiError, Client
 from lightkube.core.resource import NamespacedResource, Resource, api_info
 from lightkube.types import PatchType
@@ -276,10 +277,15 @@ class KubernetesResourceManager:
         self.patch(resources=resources, force=force, patch_type=patch_type)
 
 
-def create_charm_default_labels(application_name: str, model_name: str, scope: str) -> dict:
+def create_charm_default_labels(
+    application_name: str, model_name: str, scope: str
+) -> Dict[str, str]:
     """Return a default label style for the KubernetesResourceHandler label selector."""
+    instance_label = charm_kubernetes_label(
+        model_name=model_name, app_name=application_name, separator="-"
+    )
     return {
-        "app.kubernetes.io/instance": f"{application_name}-{model_name}",
+        "app.kubernetes.io/instance": instance_label,
         "kubernetes-resource-handler-scope": scope,
     }
 
